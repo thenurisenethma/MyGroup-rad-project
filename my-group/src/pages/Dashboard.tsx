@@ -7,6 +7,7 @@ export interface Task {
   title: string
   due: string
   status: string
+  assignedTo?: string
 }
 
 export default function Dashboard() {
@@ -22,98 +23,125 @@ export default function Dashboard() {
     if (!userId || !token) return
 
     const fetchTasks = async () => {
-      const res = await fetch(`http://localhost:5000/api/tasks/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      try {
+        const res = await fetch(`http://localhost:5000/api/tasks/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
 
-      const data = await res.json()
+        // Normalize _id to id
+        const normalized: Task[] = data.map((t: any) => ({
+          id: t._id,
+          title: t.title,
+          due: t.due,
+          status: t.status,
+          assignedTo: t.assignedTo || "",
+        }))
 
-      // 🔥 normalize _id → id
-      const normalized: Task[] = data.map((t: any) => ({
-        id: t._id,
-        title: t.title,
-        due: t.due,
-        status: t.status,
-      }))
-
-      setTasks(normalized)
+        setTasks(normalized)
+      } catch (err) {
+        console.error(err)
+      }
     }
 
     fetchTasks()
   }, [userId, token])
 
-  // 🔹 Add / Update
-const handleSaveTask = async (task: Task) => {
-  if (!token) return
+  // 🔹 Add / Update task
+  const handleSaveTask = async (task: Task) => {
+    if (!token || !userId) return
 
-  // ✅ UPDATE
-  if (task.id) {
-    console.log("Updating task with id:", task.id)
+    // ✅ UPDATE
+    if (task.id) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/tasks/${task.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: task.title,
+            due: task.due,
+            status: task.status,
+            assignedTo: task.assignedTo || "",
+          }),
+        })
 
-    const res = await fetch(
-      `http://localhost:5000/api/tasks/${task.id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: task.title,
-          due: task.due,
-          status: task.status,
-        }),
+        const updated = await res.json()
+
+        if (!res.ok) {
+          alert(updated.message || "Failed to update task")
+          return
+        }
+
+        // Update task in state
+        setTasks(prev =>
+          prev.map(t => (t.id === task.id ? { ...t, ...updated, id: updated._id } : t))
+        )
+      } catch (err) {
+        console.error(err)
+        alert("Something went wrong while updating task")
       }
-    )
+    }
+    // ✅ ADD NEW
+    else {
+      try {
+        const res = await fetch("http://localhost:5000/api/tasks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: task.title,
+            due: task.due,
+            status: task.status,
+            assignedTo: task.assignedTo || "",
+            userId,
+          }),
+        })
 
-    const updated = await res.json()
+        const created = await res.json()
 
-    setTasks(prev =>
-      prev.map(t =>
-        t.id === task.id
-          ? { ...updated, id: updated._id ?? task.id }
-          : t
-      )
-    )
+        if (!res.ok) {
+          alert(created.message || "Failed to add task")
+          return
+        }
+
+        setTasks(prev => [...prev, { ...created, id: created._id }])
+      } catch (err) {
+        console.error(err)
+        alert("Something went wrong while adding task")
+      }
+    }
+
+    // Close modal
+    setEditTask(null)
+    setIsModalOpen(false)
   }
-  // ✅ ADD
-  else {
-    const res = await fetch("http://localhost:5000/api/tasks", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        title: task.title,
-        due: task.due,
-        status: task.status,
-        userId,
-      }),
-    })
 
-    const created = await res.json()
+  // 🔹 Delete task
+  const handleDeleteTask = async (id?: string) => {
+    if (!token || !id) return
 
-    setTasks(prev => [
-      ...prev,
-      { ...created, id: created._id },
-    ])
-  }
+    try {
+      const res = await fetch(`http://localhost:5000/api/tasks/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
 
-  setEditTask(null)
-  setIsModalOpen(false)
-}
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.message || "Failed to delete task")
+        return
+      }
 
-  // 🔹 Delete
-  const handleDeleteTask = async (id: string) => {
-    if (!token) return
-
-    await fetch(`http://localhost:5000/api/tasks/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    })
-
-    setTasks(prev => prev.filter(t => t.id !== id))
+      setTasks(prev => prev.filter(t => t.id !== id))
+    } catch (err) {
+      console.error(err)
+      alert("Something went wrong while deleting task")
+    }
   }
 
   return (
@@ -144,12 +172,9 @@ const handleSaveTask = async (task: Task) => {
                 <p className="font-medium">{task.title}</p>
                 <p className="text-sm text-gray-500">
                   Due: {task.due} | {task.status}
+                  {task.assignedTo && ` | Assigned to: ${task.assignedTo}`}
                 </p>
               </div>
-<p className="text-sm text-gray-500">
-  Due: {task.due} | {task.status} 
-  {task.assignedTo && ` | Assigned to: ${task.assignedTo}`}
-</p>
 
               <div className="flex gap-2">
                 <button
@@ -161,13 +186,12 @@ const handleSaveTask = async (task: Task) => {
                 >
                   Edit
                 </button>
-              <button
-              onClick={() => task.id && handleDeleteTask(task.id)}
-              className="text-red-600"
-              >
-               Delete
-              </button>
-
+                <button
+                  onClick={() => handleDeleteTask(task.id)}
+                  className="text-red-600"
+                >
+                  Delete
+                </button>
               </div>
             </li>
           ))}
