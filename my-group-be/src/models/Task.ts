@@ -6,6 +6,8 @@ export interface ITask extends Document {
   status: "Pending" | "In Progress" | "Completed"
   userId: string 
   assignedTo?: string
+  groupId?: string; 
+
 }
 
 const taskSchema = new Schema<ITask>({
@@ -14,5 +16,8 @@ const taskSchema = new Schema<ITask>({
   userId: { type: String, required: true },
   assignedTo: { type: String },
   status: { type: String, default: "Pending" },
+  groupId: { type: String }, 
+
+  
 })
 export default mongoose.model<ITask>("Task", taskSchema)

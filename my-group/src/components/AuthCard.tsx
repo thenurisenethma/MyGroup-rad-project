@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 // import gear from "../assets/"
 import bee from "../assets/bee.png"
+import loginbee from "../assets/loginbee.png"
 
 interface AuthCardProps {
   title: string
@@ -15,7 +16,7 @@ export default function AuthCard({ title, children }: AuthCardProps) {
                 className="absolute bottom-4 right-4 w-50 h-50" />
         </div> */}
         <div>
-            <img src={bee} alt="bee" 
+            <img src={loginbee} alt="bee" 
                 className="absolute top-10 left-70 w-70 h-50" />
         </div>
       

@@ -59,5 +59,20 @@ router.delete("/:id", async (req: Request, res: Response) => {
   }
 })
 
+router.post("/", async (req, res) => {
+  const { title, due, userId, groupId, assignedTo } = req.body;
+
+  const task = await Task.create({
+    title,
+    due,
+    userId,
+    groupId,
+    assignedTo,
+    status: "Pending",
+  });
+
+  res.status(201).json(task);
+});
+
 
 export default router

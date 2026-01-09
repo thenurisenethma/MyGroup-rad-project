@@ -3,7 +3,7 @@ import TaskModal from "../components/TaskModal"
 import { useState, useEffect } from "react"
 
 export interface Task {
-  id?: string
+  id: string
   title: string
   due: string
   status: string
@@ -47,7 +47,7 @@ export default function Dashboard() {
     fetchTasks()
   }, [userId, token])
 
-  // 🔹 Add / Update task
+  //  Add / Update task
   const handleSaveTask = async (task: Task) => {
     if (!token || !userId) return
 
@@ -84,7 +84,6 @@ export default function Dashboard() {
         alert("Something went wrong while updating task")
       }
     }
-    // ✅ ADD NEW
     else {
       try {
         const res = await fetch("http://localhost:5000/api/tasks", {
@@ -143,6 +142,27 @@ export default function Dashboard() {
       alert("Something went wrong while deleting task")
     }
   }
+  const handleCompleteTask = async (id: string) => {
+  if (!token) return
+
+  const res = await fetch(`http://localhost:5000/api/tasks/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status: "Completed" }),
+  })
+
+  const updated = await res.json()
+
+  setTasks(prev =>
+    prev.map(t =>
+      t.id === id ? { ...t, status: "Completed" } : t
+    )
+  )
+}
+
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -156,7 +176,7 @@ export default function Dashboard() {
               setEditTask(null)
               setIsModalOpen(true)
             }}
-            className="bg-yellow-400 px-4 py-2 rounded"
+            className="bg-yellow-400 px-4 py-2 rounded hover:bg-yellow-600"
           >
             + Add Task
           </button>
@@ -175,24 +195,35 @@ export default function Dashboard() {
                   {task.assignedTo && ` | Assigned to: ${task.assignedTo}`}
                 </p>
               </div>
-
+              
               <div className="flex gap-2">
+              {task.status !== "Completed" && (
                 <button
-                  onClick={() => {
-                    setEditTask(task)
-                    setIsModalOpen(true)
-                  }}
-                  className="text-blue-600"
+                  onClick={() => handleCompleteTask(task.id)}
+                className="px-4 py-2 bg-green-100 text-yellow-600 rounded-lg hover:bg-yellow-600 hover:text-white transition"
                 >
-                  Edit
+                  Complete
                 </button>
-                <button
-                  onClick={() => handleDeleteTask(task.id)}
-                  className="text-red-600"
-                >
-                  Delete
-                </button>
-              </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setEditTask(task)
+                  setIsModalOpen(true)
+                }}
+                className="px-4 py-2 bg-blue-100 text-yellow-600 rounded-lg hover:bg-yellow-600 hover:text-white transition"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={() => handleDeleteTask(task.id)}
+                className="px-4 py-2 bg-red-100 text-yellow-600 rounded-lg hover:bg-yellow-600 hover:text-white transition"
+              >
+                Delete
+              </button>
+            </div>
+
             </li>
           ))}
         </ul>
